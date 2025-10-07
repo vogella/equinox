@@ -429,6 +429,12 @@ public class RegistryStrategy {
 	/**
 	 * Returns the parser used by the registry to parse descriptions of extension
 	 * points and extensions. This method must not return <code>null</code>.
+	 * <p>
+	 * The parser factory is cached and pre-configured for optimal startup
+	 * performance. The factory is configured to be namespace-aware and
+	 * non-validating, which are the standard settings used during extension
+	 * registry parsing.
+	 * </p>
 	 *
 	 * @return this strategy's parser
 	 * @see org.eclipse.core.runtime.IExtensionRegistry#addContribution(java.io.InputStream,
@@ -440,6 +446,11 @@ public class RegistryStrategy {
 			try {
 				// force org.xml.sax.SAXParseException for any DOCTYPE:
 				theXMLParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true); //$NON-NLS-1$
+				// Pre-configure factory settings for optimal performance during startup
+				// These settings are required by ExtensionsParser and configuring them
+				// once here avoids redundant configuration calls during startup
+				theXMLParserFactory.setNamespaceAware(true);
+				theXMLParserFactory.setValidating(false);
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}

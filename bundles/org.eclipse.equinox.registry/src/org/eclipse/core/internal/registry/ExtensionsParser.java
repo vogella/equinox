@@ -442,13 +442,20 @@ public class ExtensionsParser extends DefaultHandler {
 			if (locationName == null) {
 				locationName = manifestName;
 			}
-			factory.setNamespaceAware(true);
+			// Configure factory settings only if not already configured
+			// This optimization avoids reconfiguring the same factory repeatedly during
+			// startup when processing multiple plugin.xml files
+			if (!factory.isNamespaceAware()) {
+				factory.setNamespaceAware(true);
+			}
+			if (!factory.isValidating()) {
+				factory.setValidating(false);
+			}
 			try {
 				factory.setFeature("http://xml.org/sax/features/string-interning", true); //$NON-NLS-1$
 			} catch (SAXException se) {
 				// ignore; we can still operate without string-interning
 			}
-			factory.setValidating(false);
 			factory.newSAXParser().parse(in, this);
 			return (Contribution) objectStack.pop();
 		} finally {
