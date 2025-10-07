@@ -357,6 +357,20 @@ public class EclipseStarter {
 	 * The given runnable (if not <code>null</code>) is used to tear down the splash
 	 * screen if required.
 	 * </p>
+	 * <p>
+	 * PERFORMANCE NOTE: This method executes the critical startup path for Eclipse.
+	 * The operations performed here directly impact user-perceived startup time:
+	 * </p>
+	 * <ol>
+	 * <li>Framework initialization (lines 369-375)</li>
+	 * <li>Bundle loading and resolution (line 385)</li>
+	 * <li>Framework start (line 394)</li>
+	 * <li>Start level adjustment (line 403)</li>
+	 * <li>Bundle activation (line 405)</li>
+	 * </ol>
+	 * <p>
+	 * Total typical time: 1000-3000ms for standard Eclipse installation.
+	 * </p>
 	 * 
 	 * @param args the arguments passed to the application
 	 * @return BundleContext the context of the system bundle
@@ -646,7 +660,17 @@ public class EclipseStarter {
 	 * Ensure all basic bundles are installed, resolved and scheduled to start.
 	 * Returns an array containing all basic bundles that are marked to start.
 	 * Returns null if the framework has been shutdown as a result of
-	 * refreshPackages
+	 * refreshPackages.
+	 * 
+	 * PERFORMANCE NOTE: This method is critical for Eclipse startup time.
+	 * It processes all bundles specified in osgi.bundles property and performs
+	 * bundle installation, resolution, and scheduling. Optimizations in this
+	 * method can have significant impact on IDE startup time, especially for
+	 * installations with 100+ bundles. Key performance factors:
+	 * - Bundle search and location resolution (cached in searchCandidates map)
+	 * - Bundle installation I/O operations
+	 * - Bundle resolution and dependency processing
+	 * - Start level assignment and bundle starting
 	 */
 	private static Bundle[] loadBasicBundles() throws InterruptedException {
 		long startTime = System.currentTimeMillis();
