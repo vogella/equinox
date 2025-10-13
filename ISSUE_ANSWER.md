@@ -1,8 +1,8 @@
 # Answer to Issue: How can I evaluate the startup time of the Eclipse IDE
 
 ## Question
-> What is a good way to evaluate startup-up time improvements of the Eclipse IDE?
-> https://github.com/vogella/equinox/pull/3 suggested a change to improve startup performance of the Eclipse IDE. How can validate that? Is their a unit test or can I create a unit test for this?
+> What is a good way to evaluate startup time improvements of the Eclipse IDE?
+> https://github.com/vogella/equinox/pull/3 suggested a change to improve startup performance of the Eclipse IDE. How can I validate that? Is there a unit test or can I create a unit test for this?
 
 ## Answer
 
