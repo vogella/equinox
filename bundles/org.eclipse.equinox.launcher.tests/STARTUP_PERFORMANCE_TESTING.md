@@ -245,3 +245,50 @@ Example PR description format:
 - [List key changes]
 - [Explain why they improve performance]
 ```
+
+## Example: Evaluating PR #3 Performance Changes
+
+For example, if PR #3 proposes changes to improve startup performance, here's how to evaluate it:
+
+### Step 1: Test Baseline (without PR changes)
+```bash
+# Checkout master branch
+git checkout master
+
+# Build and run performance tests
+cd bundles/org.eclipse.equinox.launcher.tests
+mvn clean verify -Pbuild-individual-bundles -Pbree-libs
+
+# Save the results
+# Look for output like:
+# === Startup Time Statistics ===
+#   Minimum:  1450 ms
+#   Maximum:  1580 ms
+#   Average:  1500.00 ms
+#   Median:   1490 ms
+```
+
+### Step 2: Test with PR changes
+```bash
+# Checkout the PR branch
+git checkout pr-branch-name
+
+# Build and run performance tests again
+cd bundles/org.eclipse.equinox.launcher.tests
+mvn clean verify -Pbuild-individual-bundles -Pbree-libs
+
+# Compare the new results with baseline
+# New results might show:
+# === Startup Time Statistics ===
+#   Minimum:  1320 ms
+#   Maximum:  1390 ms
+#   Average:  1350.00 ms
+#   Median:   1345 ms
+```
+
+### Step 3: Calculate and verify improvement
+```
+Improvement = ((1500 - 1350) / 1500) * 100 = 10% faster startup
+```
+
+This 10% improvement would be significant and worth merging!
