@@ -21,20 +21,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.equinox.launcher.TestLauncherApp;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Performance tests for Eclipse launcher startup time.
@@ -74,6 +69,18 @@ public class StartupPerformanceTest extends LauncherTests {
 	 * Adjust this value based on your performance requirements.
 	 */
 	private static final long MAX_ACCEPTABLE_STARTUP_TIME_MS = 5000;
+	
+	private static final String OS_NAME = System.getProperty("os.name").toLowerCase();
+	private static final String ECLIPSE_EXE_NAME = (OS_NAME.contains("win") ? "eclipsec.exe" : "eclipse");
+	private static final String ECLIPSE_INI_FILE_NAME = "eclipse.ini";
+	private static final String DEFAULT_ECLIPSE_INI_CONTENT = """
+			-startup
+			test.launcher.jar
+			--launcher.library
+			plugins/org.eclipse.equinox.launcher
+			-vmargs
+			-Xms40m
+			""";
 
 	private ServerSocket server;
 
@@ -259,7 +266,7 @@ public class StartupPerformanceTest extends LauncherTests {
 	}
 
 	private Process startEclipseLauncher(List<String> args) throws IOException {
-		Path launcherPath = eclipseInstallationMockLocation.resolve(ECLIPSE_EXE_NAME);
+		java.nio.file.Path launcherPath = eclipseInstallationMockLocation.resolve(ECLIPSE_EXE_NAME);
 		List<String> allArgs = new ArrayList<>();
 		allArgs.add(launcherPath.toString());
 		allArgs.addAll(args);
@@ -269,7 +276,7 @@ public class StartupPerformanceTest extends LauncherTests {
 		return pb.start();
 	}
 
-	private static void writeEclipseIni(String content) throws IOException {
-		Files.writeString(eclipseInstallationMockLocation.resolve(ECLIPSE_INI_FILE_NAME), content);
+	private void writeEclipseIni(String content) throws IOException {
+		java.nio.file.Files.writeString(eclipseInstallationMockLocation.resolve(ECLIPSE_INI_FILE_NAME), content);
 	}
 }
