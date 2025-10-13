@@ -40,6 +40,10 @@ Equinox implements the follwoing specification with the given level of complianc
 
 For detailed information about development, testing and builds, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Performance Testing
+
+To evaluate startup time improvements and performance changes, see the [Startup Performance Testing Guide](bundles/org.eclipse.equinox.launcher.tests/STARTUP_PERFORMANCE_TESTING.md).
+
 [![Create Eclipse Development Environment for Equinox](https://download.eclipse.org/oomph/www/setups/svg/Equinox.svg)](
 https://www.eclipse.org/setups/installer/?url=https://raw.githubusercontent.com/eclipse-equinox/equinox/master/releng/org.eclipse.equinox.releng/EquinoxConfiguration.setup&show=true
 "Click to open Eclipse-Installer Auto Launch or drag into your running installer")
