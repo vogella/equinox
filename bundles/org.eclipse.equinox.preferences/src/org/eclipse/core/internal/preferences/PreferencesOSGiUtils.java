@@ -56,7 +56,7 @@ public class PreferencesOSGiUtils {
 		}
 
 		initTracker = new ServiceTracker<>(context, ILegacyPreferences.class, null);
-		initTracker.open(true);
+		initTracker.open(); // Non-blocking open for faster startup
 
 		debugTracker = new ServiceTracker<>(context, DebugOptions.class, null);
 		debugTracker.open();
