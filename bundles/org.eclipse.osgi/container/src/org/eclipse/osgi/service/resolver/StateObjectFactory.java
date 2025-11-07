@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2003, 2012 IBM Corporation and others.
+ * Copyright (c) 2003, 2025 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -303,6 +303,18 @@ public interface StateObjectFactory {
 	 * @return the created bundle description
 	 */
 	public BundleDescription createBundleDescription(BundleDescription original);
+
+	/**
+	 * Creates a bundle description that is a copy of the given description. The
+	 * user object of the original bundle description is not copied and the copy
+	 * will use the supplied id as the bundle id
+	 *
+	 * @param id       the new id to assign to the copy
+	 * @param original the bundle description to be copied
+	 * @return the created bundle description
+	 * @since 3.24
+	 */
+	public BundleDescription createBundleDescription(long id, BundleDescription original);
 
 	/**
 	 * Creates a bundle specification from the given parameters.
@@ -722,6 +734,14 @@ public interface StateObjectFactory {
 			return getImplementation().createBundleDescription(original);
 		}
 
+		/**
+		 * @since 3.24
+		 */
+		@Override
+		public BundleDescription createBundleDescription(long id, BundleDescription original) {
+			return getImplementation().createBundleDescription(id, original);
+		}
+
 		@Override
 		public BundleSpecification createBundleSpecification(String requiredSymbolicName,
 				VersionRange requiredVersionRange, boolean export, boolean optional) {
@@ -865,5 +885,6 @@ public interface StateObjectFactory {
 		public State readState(File stateDirectory) throws IOException {
 			return getImplementation().readState(stateDirectory);
 		}
+
 	}
 }
