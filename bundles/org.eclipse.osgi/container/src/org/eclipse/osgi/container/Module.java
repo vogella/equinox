@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.osgi.container.ModuleContainerAdaptor.ModuleEvent;
 import org.eclipse.osgi.framework.util.ThreadInfoReport;
 import org.eclipse.osgi.internal.container.EquinoxReentrantLock;
+import org.eclipse.osgi.internal.container.InternalUtils;
 import org.eclipse.osgi.internal.messages.Msg;
 import org.eclipse.osgi.report.resolution.ResolutionReport;
 import org.eclipse.osgi.util.NLS;
@@ -492,7 +493,7 @@ public abstract class Module implements BundleReference, BundleStartLevel, Compa
 					return;
 				if (getState().equals(State.INSTALLED)) {
 					String reportMessage = report.getResolutionReportMessage(getCurrentRevision());
-					throw new BundleException(Msg.Module_ResolveError + reportMessage, BundleException.RESOLVE_ERROR);
+					throw InternalUtils.newResolveError(Msg.Module_ResolveError + reportMessage);
 				}
 			}
 

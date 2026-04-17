@@ -650,7 +650,7 @@ public class EquinoxBundle implements Bundle, BundleReference {
 			ResolutionReport report = resolvedClassLoader.report;
 			if (report != null) {
 				String reportMessage = report.getResolutionReportMessage(module.getCurrentRevision());
-				BundleException bundleException = new BundleException(reportMessage, BundleException.RESOLVE_ERROR);
+				BundleException bundleException = InternalUtils.newResolveError(reportMessage);
 				equinoxContainer.getEventPublisher().publishFrameworkEvent(FrameworkEvent.ERROR, this, bundleException);
 				throw new ClassNotFoundException(name, bundleException);
 			}

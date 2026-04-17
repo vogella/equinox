@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.osgi.container.ModuleContainer.ContainerStartLevel;
 import org.eclipse.osgi.container.ModuleContainerAdaptor.ContainerEvent;
 import org.eclipse.osgi.container.ModuleContainerAdaptor.ModuleEvent;
+import org.eclipse.osgi.internal.container.InternalUtils;
 import org.eclipse.osgi.internal.messages.Msg;
 import org.eclipse.osgi.report.resolution.ResolutionReport;
 import org.osgi.framework.AdminPermission;
@@ -88,7 +89,7 @@ public abstract class SystemModule extends Module {
 					return;
 				if (getState().equals(State.INSTALLED)) {
 					String reportMessage = report.getResolutionReportMessage(getCurrentRevision());
-					throw new BundleException(Msg.Module_ResolveError + reportMessage, BundleException.RESOLVE_ERROR);
+					throw InternalUtils.newResolveError(Msg.Module_ResolveError + reportMessage);
 				}
 			}
 

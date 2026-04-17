@@ -26,6 +26,7 @@ import java.util.RandomAccess;
 import java.util.UUID;
 import org.eclipse.osgi.internal.framework.EquinoxConfiguration;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleException;
 import org.osgi.framework.BundlePermission;
 import org.osgi.framework.CapabilityPermission;
 import org.osgi.framework.PackagePermission;
@@ -200,6 +201,35 @@ public class InternalUtils {
 			leastSignificantBits = (leastSignificantBits << 8) | (uuidBytes[i] & 0xff);
 		}
 		return new UUID(mostSignificantBits, leastSignificantBits).toString();
+	}
+
+	/**
+	 * System property to include the full stack trace on resolution-error
+	 * {@link BundleException}s. When not set (the default), resolution errors omit
+	 * their stack trace since the message already identifies the bundle and the
+	 * unresolved requirement; the stack is always the same OSGi event-dispatch
+	 * chain and carries no diagnostic value. Set to {@code true} to restore the
+	 * stack trace for debugging.
+	 */
+	public static final String PROP_RESOLVER_ERROR_STACKTRACE = "equinox.resolver.errorStacktrace"; //$NON-NLS-1$
+
+	/**
+	 * Creates a {@link BundleException} of type {@link BundleException#RESOLVE_ERROR}.
+	 * The stack trace is suppressed unless
+	 * {@link #PROP_RESOLVER_ERROR_STACKTRACE} is set — see that property for why.
+	 */
+	public static BundleException newResolveError(String message) {
+		if (Boolean.getBoolean(PROP_RESOLVER_ERROR_STACKTRACE)) {
+			return new BundleException(message, BundleException.RESOLVE_ERROR);
+		}
+		return new BundleException(message, BundleException.RESOLVE_ERROR) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public synchronized Throwable fillInStackTrace() {
+				return this;
+			}
+		};
 	}
 
 	public static <E> Enumeration<E> asEnumeration(Iterator<E> it) {
