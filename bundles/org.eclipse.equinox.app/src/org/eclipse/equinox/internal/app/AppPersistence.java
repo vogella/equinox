@@ -169,7 +169,8 @@ public class AppPersistence implements ServiceTrackerCustomizer {
 		if (ScheduledApplication.TIMER_TOPIC.equals(scheduledApp.getTopic())) {
 			synchronized (timerApps) {
 				timerApps.add(scheduledApp);
-				if (timerThread == null) {
+				// Only start timer thread if there are actual timer apps that need scheduling
+				if (timerThread == null && !timerApps.isEmpty()) {
 					startTimer();
 				}
 			}
