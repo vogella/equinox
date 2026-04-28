@@ -414,8 +414,8 @@ _TCHAR* getOfficialName() {
  * Determine the default official application name
  *
  * This function provides the default application name that appears in a variety of
- * places such as: title of message dialog, title of splash screen window
- * that shows up in Windows task bar.
+ * places such as: title of message dialog, title of the application
+ * window that shows up in the Windows task bar.
  * It is computed from the name of the launcher executable and
  * by capitalizing the first letter. e.g. "c:/ide/eclipse.exe" provides
  * a default name of "Eclipse".

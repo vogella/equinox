@@ -147,30 +147,33 @@ public class Main {
 	private JNIBridge bridge = null;
 
 	// splash handling
-	private boolean showSplash = false;
 	private String splashLocation = null;
 	private String endSplash = null;
 	private boolean initialize = false;
 	private boolean splashDown = false;
 
-	public final class SplashHandler extends Thread {
+	// Kept as a Runnable with an updateSplash() method because
+	// org.eclipse.core.runtime.internal.adaptor.DefaultStartupMonitor looks both
+	// up reflectively. The launcher no longer drives a native splash, so both
+	// callbacks are no-ops; the application is expected to manage its own splash.
+	public final class SplashHandler implements Runnable {
 		@Override
 		public void run() {
-			takeDownSplash();
+			// no-op
 		}
 
-		//Called reflectively by org.eclipse.core.runtime.internal.adaptor.DefaultStartupMonitor
 		public void updateSplash() {
-			if (bridge != null && !splashDown) {
-				bridge.updateSplash();
-			}
+			// no-op
 		}
 	}
 
-	private final Thread splashHandler = new SplashHandler();
+	private final Runnable splashHandler = new SplashHandler();
 
-	//splash screen system properties
-	private static final String SPLASH_HANDLE = "org.eclipse.equinox.launcher.splash.handle"; //$NON-NLS-1$
+	// System property published for the workbench's phase-2 splash so it can
+	// load the bitmap. The launcher no longer displays a splash itself, but
+	// it still resolves the bitmap path (from -showsplash, osgi.splashLocation,
+	// or osgi.splashPath) and exposes it here. See
+	// org.eclipse.ui.internal.Workbench#createSplashWrapper.
 	private static final String SPLASH_LOCATION = "org.eclipse.equinox.launcher.splash.location"; //$NON-NLS-1$
 
 	// command line args
@@ -1441,9 +1444,6 @@ public class Main {
 			// this constant and display a message to the user telling them that
 			// there is information in their log file.
 			result = 13;
-		} finally {
-			// always try putting down the splash screen just in case the application failed to do so
-			takeDownSplash();
 		}
 		// Return an int exit code and ensure the system property is set.
 		System.setProperty(PROP_EXITCODE, Integer.toString(result));
@@ -1528,9 +1528,8 @@ public class Main {
 					});
 					yield true;
 				}
-				case SHOWSPLASH -> { // look for the command to use to show the splash screen
-					showSplash = true;
-					consumeParameter(args, arg -> { //consume optional parameter for showsplash
+				case SHOWSPLASH -> { // consume -showsplash and its optional bitmap path
+					consumeParameter(args, arg -> {
 						splashLocation = arg;
 					});
 					yield true;
@@ -2018,89 +2017,27 @@ public class Main {
 	}
 
 	/*
-	 * Handle splash screen.
-	 *  The splash screen is displayed natively.  Whether or not the splash screen
-	 *  was displayed by the launcher, we invoke JNIBridge.showSplash() and the
-	 *  native code handles the case of the splash screen already existing.
-	 *
-	 * The -showsplash argument may indicate the bitmap used by the native launcher,
-	 * or the bitmap location may be extracted from the config.ini
-	 *
-	 * We pass a handler (Runnable) to the platform which is called as a result of the
-	 * launched application calling Platform.endSplash(). This handle calls
-	 * JNIBridge.takeDownSplash and the native code will close the splash screen.
-	 *
-	 * The -endsplash argument is longer used and has the same result as -nosplash
-	 *
-	 * @param defaultPath search path for the boot plugin
+	 * Resolve the splash bitmap location and publish it as a system property so
+	 * the application (e.g. SWT phase-2 splash in
+	 * org.eclipse.ui.internal.Workbench) can find it. The launcher itself no
+	 * longer displays a splash; the bitmap is located via -showsplash,
+	 * osgi.splashLocation, or osgi.splashPath (typically configured in
+	 * config.ini).
 	 */
 	private void handleSplash() {
-		// run without splash if we are initializing or nosplash
-		// was specified (splashdown = true)
-		if (initialize || splashDown || bridge == null) {
-			showSplash = false;
+		if (initialize || splashDown) {
 			endSplash = null;
 			return;
 		}
-
-		if (showSplash || endSplash != null) {
-			// Register the endSplashHandler to be run at VM shutdown. This hook will be
-			// removed once the splash screen has been taken down.
-			try {
-				Runtime.getRuntime().addShutdownHook(splashHandler);
-			} catch (Throwable ex) {
-				// Best effort to register the handler
-			}
-		}
-
-		// if -endsplash is specified, use it and ignore any -showsplash command
 		if (endSplash != null) {
-			showSplash = false;
 			return;
 		}
-
-		// check if we are running without a splash screen
-		if (!showSplash) {
-			return;
-		}
-
-		// determine the splash location
 		splashLocation = getSplashLocation();
 		if (debug) {
 			System.out.println("Splash location:\n    " + splashLocation); //$NON-NLS-1$
 		}
-		if (splashLocation == null) {
-			return;
-		}
-
-		bridge.setLauncherInfo(System.getProperty(PROP_LAUNCHER), System.getProperty(PROP_LAUNCHER_NAME));
-		bridge.showSplash(splashLocation);
-		long handle = bridge.getSplashHandle();
-		if (handle != 0 && handle != -1) {
-			System.setProperty(SPLASH_HANDLE, String.valueOf(handle));
+		if (splashLocation != null) {
 			System.setProperty(SPLASH_LOCATION, splashLocation);
-			bridge.updateSplash();
-		} else {
-			// couldn't show the splash screen for some reason
-			splashDown = true;
-		}
-	}
-
-	/*
-	 * Take down the splash screen.
-	 */
-	private void takeDownSplash() {
-		if (splashDown || bridge == null) { // splash is already down
-			return;
-		}
-
-		splashDown = bridge.takeDownSplash();
-		System.clearProperty(SPLASH_HANDLE);
-
-		try {
-			Runtime.getRuntime().removeShutdownHook(splashHandler);
-		} catch (Throwable e) {
-			// OK to ignore this, happens when the VM is already shutting down
 		}
 	}
 

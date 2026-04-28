@@ -43,10 +43,8 @@ void displayMessage( _TCHAR* title, _TCHAR* message )
 
 /* Initialize Window System
  *
- * Create a pop window to display the bitmap image.
- *
- * Return the window handle as the data for the splash command.
- *
+ * Creates the hidden top-level window used by the launcher to host
+ * timers (file-open polling, JVM exit detection) and message dialogs.
  */
 int initWindowSystem( int* pArgc, _TCHAR* argv[] )
 {
