@@ -17,7 +17,7 @@
  *    Christian Georgi (SAP SE) - Fix VM path for new file layout (bug 469766)
  */
 
-/* MacOS X Cocoa specific logic for displaying the splash screen. */
+/* MacOS X Cocoa specific launcher logic. */
 
 #include "eclipseOS.h"
 #include "eclipseCommon.h"
@@ -33,7 +33,6 @@
 #include <mach-o/dyld.h>
 
 #define startupJarName "startup.jar"
-#define SPLASH_LAUNCHER "/Resources/Splash.app/Contents/"
 
 #define DEBUG 0
 
@@ -81,70 +80,6 @@ static const char* jvmLibs[] = { "libjvm.dylib", "libjvm.jnilib", "libjvm.so", N
 
 /* Define the window system arguments for the various Java VMs. */
 static char*  argVM_JAVA[] = { "-XstartOnFirstThread", NULL };
-
-static NSWindow* window = nil;
-@interface KeyWindow : NSWindow { }
-- (BOOL)canBecomeKeyWindow;
-@end
-
-@implementation KeyWindow
-- (BOOL)canBecomeKeyWindow {
-	return YES;
-}
-
-- (void)close {
-	[super close];
-	window = nil;
-}
-
-+ (int)show: (NSString *) featureImage {
-	if (window != NULL)
-		return 0; /*already showing */
-	if (featureImage == NULL)
-		return ENOENT;
-
-	int result = ENOENT;
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	[NSApplication sharedApplication];
-	NSImage* image = [[NSImage alloc] initByReferencingFile: featureImage];
-	[featureImage release];
-	if (image != NULL) {
-        NSSize size = [image size];
-		NSRect rect = {{0, 0}, {size.width, size.height}};
-		[image autorelease];
-		window = [[KeyWindow alloc] initWithContentRect: rect styleMask: NSWindowStyleMaskBorderless backing: NSBackingStoreBuffered defer: 0];
-		if (window != nil) {
-			[window center];
-			[window setBackgroundColor: [NSColor colorWithPatternImage: image]];
-			[window makeKeyAndOrderFront: nil];
-			dispatchMessages();
-			result = 0;
-		}
-	}
-	[pool release];
-	return result;
-}
-
-+ (void)shutdown {
-	if (window != 0) {
-		NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-		[window close];
-		window = nil;
-		[pool release];
-	}
-}
-
-+ (void)dispatch {
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	NSEvent* event;
-	NSApplication* application = [NSApplication sharedApplication];
-	while ((event = [application nextEventMatchingMask: NSEventMaskAny untilDate: nil inMode: NSDefaultRunLoopMode dequeue: TRUE]) != nil) {
-		[application sendEvent: event];
-	}
-	[pool release];
-}
-
-@end
 
 @interface AppleEventDelegate : NSObject
 - (void)handleOpenDocuments:(NSAppleEventDescriptor *)event withReplyEvent: (NSAppleEventDescriptor *)replyEvent;
@@ -253,42 +188,8 @@ int reuseWorkbench(_TCHAR** filePath, int timeout) {
 	return 0;
 }
 
-/* Show the Splash Window
- *
- * Create the splash window, load the bitmap and display the splash window.
- */
-int showSplash( const _TCHAR* featureImage )
-{
-	int result = 0;
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	NSString *str = [[NSString stringWithUTF8String: featureImage] retain];
-	if ([NSThread isMainThread]) {
-		result = [KeyWindow show: str];
-	} else {
-		[KeyWindow performSelectorOnMainThread: @selector(show:) withObject: str waitUntilDone: 0];
-	}
-	[pool release];
-	return result;
-}
-
-void takeDownSplash() {
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	if ([NSThread isMainThread]) {
-		[KeyWindow shutdown];
-	} else {
-		[KeyWindow performSelectorOnMainThread: @selector(shutdown) withObject: nil waitUntilDone: 0];
-	}
-	[pool release];
-}
-
 void dispatchMessages() {
-	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	if ([NSThread isMainThread]) {
-		[KeyWindow dispatch];
-	} else {
-		[KeyWindow performSelectorOnMainThread: @selector(dispatch) withObject: nil waitUntilDone: 0];
-	}
-	[pool release];
+	/* No splash to drive on Cocoa; declared for cross-platform header parity. */
 }
 
 void installAppleEventHandler() {
@@ -306,10 +207,6 @@ void installAppleEventHandler() {
 				  andEventID:kAEGetURL];
 //	[appleEventDelegate release];
 	[pool release];
-}
-
-jlong getSplashHandle() {
-	return (jlong)window;
 }
 
 /* Get the window system specific VM arguments */

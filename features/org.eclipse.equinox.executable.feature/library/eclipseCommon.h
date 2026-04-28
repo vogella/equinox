@@ -24,9 +24,7 @@
 #define DEBUG_ARG          _T_ECLIPSE("-debug") // Post-fixing with _ARG. Otherwise it causes failure in macOS build
 #define OS                 _T_ECLIPSE("-os")
 #define OSARCH             _T_ECLIPSE("-arch")
-#define NOSPLASH           _T_ECLIPSE("-nosplash")
 #define LAUNCHER           _T_ECLIPSE("-launcher")
-#define SHOWSPLASH         _T_ECLIPSE("-showsplash")
 #define EXITDATA           _T_ECLIPSE("-exitdata")
 #define STARTUP            _T_ECLIPSE("-startup")
 #define VM                 _T_ECLIPSE("-vm")

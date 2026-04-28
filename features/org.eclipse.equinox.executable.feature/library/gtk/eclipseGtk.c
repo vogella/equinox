@@ -25,7 +25,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <dlfcn.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -45,9 +44,6 @@ static char*  argVM_JAVA[]        = { NULL };
 
 
 /* Define local variables . */
-static GtkWidget*	splashHandle = 0;
-static GtkWidget*   shellHandle = 0;
-
 static _TCHAR** openFilePath = NULL; /* the files we want to open */
 static int openFileTimeout = 60; 	 /* number of seconds to wait before timeout */
 static int filesPassedToSWT = 0;	 /* set to 1 on success */
@@ -231,108 +227,9 @@ gboolean gdbus_call_FileOpen () {
 	}
 }
 
-/* Get current scaling-factor */
-float scaleFactor () {
-	float scaleFactor = 1;
-	if (isGtk4()) {
-		return scaleFactor;
-	}
-	GdkScreen * screen;
-	double resolution;
-	screen = gtk.gdk_screen_get_default();
-	resolution = gtk.gdk_screen_get_resolution (screen);
-	if (resolution <= 0) resolution = 96; // in unix and windows 100% corresponds to dpi of 96
-	resolution = ((int)((resolution + 24) / 96)) * 96; //rounding the resolution to 100% multiples,this implementation needs to be kept in sync with org.eclipse.swt.internal.DPIUtil#setDeviceZoom(int)
-	scaleFactor = (float)(resolution / 96);
-	return scaleFactor;
-}
-
-/* Create and Display the Splash Window */
-int showSplash( const char* featureImage ) {
-	GtkWidget *image;
-	GdkPixbuf *pixbuf, *scaledPixbuf;
-	int width, height;
-	float scalingFactor;
-
-	if (splashHandle != 0)
-		return 0; /* already showing splash */
-	if (featureImage == NULL)
-		return -1;
-	
-	if (initialArgv == NULL)
-		initialArgc = 0;
-	
-	if( initWindowSystem(&initialArgc, initialArgv) != 0)
-		return -1;
-	if (!isGtk4()) {
-		shellHandle = gtk.gtk_window_new(GTK_WINDOW_TOPLEVEL);
-		gtk.gtk_window_set_type_hint((GtkWindow*)(shellHandle), 4 /*GDK_WINDOW_TYPE_HINT_SPLASHSCREEN*/);
-		gtk.gtk_window_set_position((GtkWindow*)(shellHandle), GTK_WIN_POS_CENTER);
-		gtk.g_signal_connect_data((gpointer)shellHandle, "destroy", (GCallback)(gtk.gtk_widget_destroyed), &shellHandle, NULL, 0);
-	} else {
-		void *gtkLib = dlopen(GTK4_LIB, RTLD_LAZY);
-		GtkWidget * (*func)();
-		*(void**) (&func) = dlsym(gtkLib, "gtk_window_new");
-		if (dlerror() == NULL && func) {
-			shellHandle = (*func)();
-		} else {
-			printf(dlerror());
-		}
-	}
-	gtk.gtk_window_set_decorated((GtkWindow*)(shellHandle), FALSE);
-		
-	pixbuf = gtk.gdk_pixbuf_new_from_file(featureImage, NULL);
-	width = gtk.gdk_pixbuf_get_width(pixbuf);
-	height = gtk.gdk_pixbuf_get_height(pixbuf);
-	scalingFactor = scaleFactor();
-
-	if (scalingFactor > 1) {
-		scaledPixbuf = gtk.gdk_pixbuf_scale_simple(pixbuf, width * scalingFactor, height * scalingFactor, GDK_INTERP_BILINEAR);
-	} else {
-		scaledPixbuf = pixbuf;
-	}
-	if (!isGtk4()) {
-		image = gtk.gtk_image_new_from_pixbuf(scaledPixbuf);
-	} else {
-		image = gtk.gtk_picture_new_for_pixbuf(scaledPixbuf);
-	}
-	if (pixbuf) 	{
-		gtk.g_object_unref(pixbuf);
-	}
-	if (getOfficialName() != NULL)
-		gtk.gtk_window_set_title((GtkWindow*) shellHandle, getOfficialName());
-
-	if (!isGtk4()) {
-		gtk.gtk_container_add((GtkContainer*) shellHandle, image);
-		gtk.gtk_window_resize((GtkWindow*) shellHandle, gtk.gdk_pixbuf_get_width(scaledPixbuf), gtk.gdk_pixbuf_get_height(scaledPixbuf));
-		gtk.gtk_widget_show_all((GtkWidget*) shellHandle);
-	} else {
-		gtk.gtk_window_set_child((GtkWindow*) shellHandle, image);
-		gtk.gtk_window_present((GtkWindow*) shellHandle);
-	}
-	splashHandle = shellHandle;
-	dispatchMessages();
-	return 0;
-}
-
 void dispatchMessages() {
 	if (gtk.g_main_context_iteration != 0)
 		while(gtk.g_main_context_iteration(0,0) != 0) {}
-}
-
-jlong getSplashHandle() {
-	return (jlong) splashHandle;
-}
-
-void takeDownSplash() {
-	if(shellHandle != 0) {
-		if (!isGtk4()) {
-			gtk.gtk_widget_destroy(shellHandle);
-		}
-		dispatchMessages();
-		splashHandle = 0;
-		shellHandle = NULL;
-	}
 }
 
 /* Get the window system specific VM arguments */

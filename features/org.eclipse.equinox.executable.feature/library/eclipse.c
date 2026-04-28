@@ -19,23 +19,11 @@
 /* Eclipse Program Launcher
  *
  * This file forms the base of the eclipse_*.dll/so.  This dll is loaded by eclipse.exe
- * to start a Java VM, or alternatively it is loaded from Java to show the splash
- * screen or write to the shared memory.  See eclipseJNI.c for descriptions of the methods
- * exposed to the Java program using JNI.
+ * to start a Java VM, or alternatively it is loaded from Java to write to the shared
+ * memory.  See eclipseJNI.c for descriptions of the methods exposed to the Java program
+ * using JNI.
  *
- * To display a splash screen before starting the java vm, the launcher should be started
- * with the location of the splash bitmap to use:
- * -showsplash <path/to/splash.bmp>
- * Otherwise, when the Java program starts, it should determine the location of
- * the splash bitmap to be used and use the JNI method show_splash.
- *
- * When the Java program initialization is complete, the splash window
- * is brought down by calling the JNI method takedown_splash.
- *
- * The Java program can also call the get_splash_handle method to get the handle to the splash
- * window.  This can be passed to SWT to create SWT widgets in the splash screen.
- *
- * The Java application will receive two other arguments:
+ * The Java application will receive the following argument:
  *    -exitdata <shared memory id>
  *
  * The java program can call set_exit_data with this shared-memory-id
@@ -68,14 +56,11 @@
  *  -os <opSys>                the operating system being run on
  *  -arch <osArch>             the hardware architecture of the OS: x86_64
  *  -ws <gui>                  the window system to be used: win32, gtk, cocoa, ...
- *  -nosplash                  do not display the splash screen. The java application will
- *                             not receive the -showsplash command.
- *  -showsplash <bitmap>	   show the given bitmap in the splash screen.
  *  --launcher.noRestart       disables the restart behavior of exit codes 23 and 24.
- *  -name <name>               application name displayed in error message dialogs and
- *                             splash screen window. Default value is computed from the
- *                             name of the executable - with the first letter capitalized
- *                             if possible. e.g. eclipse.exe defaults to the name Eclipse.
+ *  -name <name>               application name displayed in error message dialogs.
+ *                             Default value is computed from the name of the executable
+ *                             - with the first letter capitalized if possible.
+ *                             e.g. eclipse.exe defaults to the name Eclipse.
  *  -startup <startup.jar>     the startup jar to execute. The argument is first assumed to be
  *                             relative to the path of the launcher. If such a file does not
  *                             exist, the argument is then treated as an absolute path.
@@ -104,7 +89,6 @@
  *     -name <application name>
  * 	   -library <eclipse library location>
  * 	   -startup <startup.jar location>
- *     [-showsplash]
  *     [-exitdata <shared memory id>]
  *     <userArgs>
  *     -vm <javaVM>
@@ -229,13 +213,9 @@ home directory.");
 #define OLD_STARTUP 		_T_ECLIPSE("startup.jar")
 #define CLASSPATH_PREFIX        _T_ECLIPSE("-Djava.class.path=")
 
-/* Splash screen names to look for when -showsplash points to a directory or plugin */
-#define SPLASH_IMAGES _T_ECLIPSE("splash.png\0" "splash.jpg\0" "splash.jpeg\0" "splash.gif\0" "splash.bmp\0" "\0")
-
 /* Define the variables to receive the option values. */
 static int     needConsole   = 0;				/* True: user wants a console	*/
 static int     debug         = 0;				/* True: output debugging info	*/
-static int     noSplash      = 0;				/* True: do not show splash win	*/
 static int     noRestart     = 0;				/* True: disables the restart behavior of the launcher */
 static int	   suppressErrors = 0;				/* True: do not display errors dialogs */
        int     secondThread  = 0;				/* True: start the VM on a second thread */
@@ -244,8 +224,6 @@ static int     appendVmargs = 0;                /* True: append cmdline vmargs t
 static int     skipJava9ParamRemoval		 = 0;		/* Set to true only on macOS, if -vm was present on commandline or in eclipse.ini and points to a shared lib */
 #endif
 
-static _TCHAR*  showSplashArg = NULL;			/* showsplash data (main launcher window) */
-static _TCHAR*  splashBitmap  = NULL;			/* the actual splash bitmap */
 static _TCHAR * startupArg    = NULL;			/* path of the startup.jar the user wants to run relative to the program path */
 static _TCHAR*  vmName        = NULL;     		/* Java VM that the user wants to run */
 static _TCHAR*  name          = NULL;			/* program name */
@@ -287,7 +265,6 @@ static Option options[] = {
     { CONSOLE,		&needConsole,	VALUE_IS_FLAG,	0 },
     { CONSOLELOG,	&needConsole,	VALUE_IS_FLAG,	0 },
     { DEBUG_ARG,	&debug,			VALUE_IS_FLAG,	0 },
-    { NOSPLASH,     &noSplash,      VALUE_IS_FLAG,	1 },
     { NORESTART,    &noRestart,     VALUE_IS_FLAG,	1 },
     { SUPRESSERRORS, &suppressErrors, VALUE_IS_FLAG, 1},
     { SECOND_THREAD, &secondThread, VALUE_IS_FLAG,  1 },
@@ -297,7 +274,6 @@ static Option options[] = {
     { INI,			&iniFile, 		0,			2 },
     { OS,			&osArg,			0,			2 },
     { OSARCH,		&osArchArg,		0,			2 },
-    { SHOWSPLASH,   &showSplashArg,	OPTIONAL_VALUE,	2 },
     { STARTUP,		&startupArg,	0,			2 },
     { VM,           &vmName,		0,			2 },
     { NAME,         &name,			0,			2 },
@@ -340,7 +316,6 @@ static _TCHAR** parseArgList( _TCHAR *data );
 static _TCHAR*  formatVmCommandMsg( _TCHAR* args[], _TCHAR* vmArgs[], _TCHAR* progArgs[] );
 static _TCHAR*  getDefaultOfficialName();
 static _TCHAR*  findStartupJar();
-static _TCHAR*  findSplash(_TCHAR* splashArg);
 static _TCHAR** getRelaunchCommand( _TCHAR **newLaucherArgs );
 static const _TCHAR* getVMArch();
 static int      _run(int argc, _TCHAR* argv[], _TCHAR* vmArgs[]);
@@ -582,15 +557,6 @@ static int _run(int argc, _TCHAR* argv[], _TCHAR* vmArgs[])
 	}
 #endif
 
-    /* If the showsplash option was given and we are using JNI */
-    if (!noSplash && showSplashArg)
-    {
-    	splashBitmap = findSplash(showSplashArg);
-    	if (splashBitmap != NULL && launchMode == LAUNCH_JNI) {
-	    	showSplash(splashBitmap);
-    	}
-    }
-
     /* not using JNI launching, need some shared data */
     if (launchMode == LAUNCH_EXE && createSharedData( &sharedID, MAX_SHARED_LENGTH )) {
         if (debug) {
@@ -603,7 +569,7 @@ static int _run(int argc, _TCHAR* argv[], _TCHAR* vmArgs[])
 
 #ifndef _WIN32
 #ifndef MACOSX
-    if ((!suppressErrors) && (!noSplash)) {
+    if (!suppressErrors) {
 	char *display = getenv("DISPLAY");
         if (display != NULL) {
             initWindowSystem( &argc, argv);
@@ -767,7 +733,6 @@ static int _run(int argc, _TCHAR* argv[], _TCHAR* vmArgs[])
     if(launchMode == LAUNCH_JNI) free(cp);
     if(cpValue != NULL)		 	 free(cpValue);
     if(exitData != NULL)		 free(exitData);
-    if(splashBitmap != NULL)  	 free(splashBitmap);
     if(vmArgs != NULL)			 free(vmArgs);
 
     if (javaResults == NULL)
@@ -1069,12 +1034,12 @@ static void getVMCommand( int launchMode, int argc, _TCHAR* argv[], _TCHAR **vmA
 	(*vmArgv)[dst] = NULL;
 
 	/* Program arguments */
-    /*  OS <os> + WS <ws> + ARCH <arch> + SHOWSPLASH <cmd> + LAUNCHER <program> + NAME <officialName>
+    /*  OS <os> + WS <ws> + ARCH <arch> + LAUNCHER <program> + NAME <officialName>
      *  + LIBRARY <eclipseLibrary> + STARTUP <jarFile> + PROTECT <protectMode> + APPEND/OVERRIDE + NORESTART
      *  + EXITDATA <sharedId> + argv[] + VM <jniLib/javaVM> + VMARGS + vmArg[] + eeVMarg[] + reqVMarg[]
      *  + NULL)
      */
-    totalProgArgs = 2 + 2 + 2 + 2 + 2 + 2
+    totalProgArgs = 2 + 2 + 2 + 2 + 2
                   + 2 + 2 + 2 + 1 + 1
                   + 2 + argc + 2 + 1 + nVMarg + nEEargs + nReqVMarg
                   + 1;
@@ -1089,14 +1054,6 @@ static void getVMCommand( int launchMode, int argc, _TCHAR* argv[], _TCHAR **vmA
     if (_tcslen(osArchArg) > 0) {
         (*progArgv)[ dst++ ] = OSARCH;
         (*progArgv)[ dst++ ] = osArchArg;
-    }
-
-	/* Append the show splash window command, if defined. */
-    if (!noSplash)
-    {
-        (*progArgv)[ dst++ ] = SHOWSPLASH;
-        if(splashBitmap != NULL)
-        	(*progArgv)[ dst++ ] = splashBitmap;
     }
 
 	/* Append the launcher command */
@@ -1240,8 +1197,8 @@ void setProgramPath(_TCHAR* path) {
  * Determine the default official application name
  *
  * This function provides the default application name that appears in a variety of
- * places such as: title of message dialog, title of splash screen window
- * that shows up in Windows task bar.
+ * places such as: title of message dialog, title of the application
+ * window that shows up in the Windows task bar.
  * It is computed from the name of the launcher executable and
  * by capitalizing the first letter. e.g. "c:/ide/eclipse.exe" provides
  * a default name of "Eclipse".
@@ -1304,86 +1261,6 @@ _TCHAR* getProgramDir( )
 
     free( programDir );
     return NULL;
-}
-
-static _TCHAR* findSplash(_TCHAR* splashArg) {
-	struct _stat stats;
-	_TCHAR *ch, *prefix;
-	_TCHAR *path, *dir, *name;
-	size_t length;
-
-	if (splashArg == NULL)
-		return NULL;
-
-	splashArg = _tcsdup(splashArg);
-	length = _tcslen(splashArg);
-	/* _tstat doesn't seem to like dirSeparators on the end */
-	while (length && IS_DIR_SEPARATOR(splashArg[length - 1])) {
-		splashArg[--length] = 0;
-	}
-
-	/* does splashArg exist */
-	if (_tstat(splashArg, &stats) == 0) {
-		/* pointing to a file */
-		if (stats.st_mode & S_IFREG) {
-			/* file, use it*/
-			return splashArg;
-		} else if (stats.st_mode & S_IFDIR) {
-			/*directory, look for splash.bmp*/
-			dir = splashArg;
-			splashArg = NULL;
-		} else {
-			free(splashArg);
-			return NULL;
-		}
-	} else {
-		/* doesn't exist, separate into path & prefix and look for a /path/prefix_<version> */
-		ch = lastDirSeparator( splashArg );
-		if (ch != NULL) {
-			if (IS_ABSOLUTE(splashArg)) {
-				/*absolute path*/
-				path = _tcsdup(splashArg);
-				path[ch - splashArg] = 0;
-			} else {
-				/* relative path, prepend with programDir */
-				path = malloc( (_tcslen(programDir) + ch - splashArg + 2) * sizeof(_TCHAR));
-				*ch = 0;
-				_stprintf(path, _T_ECLIPSE("%s%c%s"), programDir, dirSeparator, splashArg);
-				*ch = dirSeparator;
-			}
-			prefix = ch + 1;
-		} else {
-			/* No separator, treat splashArg as the prefix and look in the plugins dir */
-#ifdef MACOSX
-			path = malloc( (_tcslen(programDir) + 20) * sizeof(_TCHAR));
-			_stprintf(path, _T_ECLIPSE("%s%c%s%s"), programDir, dirSeparator, _T_ECLIPSE("../Eclipse/"), _T_ECLIPSE("plugins"));
-#else
-			path = malloc( (_tcslen(programDir) + 9) * sizeof(_TCHAR));
-			_stprintf(path, _T_ECLIPSE("%s%c%s"), programDir, dirSeparator, _T_ECLIPSE("plugins"));
-#endif
-			prefix = splashArg;
-		}
-		dir = findFile(path, prefix);
-		free(path);
-		free(splashArg);
-		path = prefix = splashArg = NULL;
-	}
-
-	/* directory, look for splash image */
-	if (dir != NULL) {
-		length = _tcslen(dir);
-		for (name = SPLASH_IMAGES; *name; name += _tcslen(name) + 1) {
-			ch = malloc((length + 1 + _tcslen(name) + 1) * sizeof(_TCHAR));
-			_stprintf(ch, _T_ECLIPSE("%s%c%s"), dir, dirSeparator, name);
-			if (_tstat(ch, &stats) == 0 && (stats.st_mode & S_IFREG)) {
-				free(dir);
-				return ch;
-			}
-			free(ch);
-		}
-		free(dir);
-	}
-	return NULL;
 }
 
 static _TCHAR* findStartupJar(){
@@ -1518,12 +1395,7 @@ static _TCHAR ** getRelaunchCommand( _TCHAR **newLaucherArgs  )
 
 	// Step 4. Add new non-vmargs launch arguments which will get precedence over old arguments
 	for (int i = 0; newLaucherArgs[i] != NULL && i != (newVmargsStart - 1); i++){
-		if (_tcsicmp(newLaucherArgs[i], SHOWSPLASH) == 0) {
-			/* remove if the next argument is not the bitmap to show */
-			if(newLaucherArgs[i + 1] != NULL && newLaucherArgs[i + 1][0] == _T_ECLIPSE('-')) {
-				continue;
-			}
-		} else if(_tcsncmp(newLaucherArgs[i], CLASSPATH_PREFIX, _tcslen(CLASSPATH_PREFIX)) == 0) {
+		if(_tcsncmp(newLaucherArgs[i], CLASSPATH_PREFIX, _tcslen(CLASSPATH_PREFIX)) == 0) {
 			/* skip -Djava.class.path=... */
 			continue;
 		} else if(_tcscmp(newLaucherArgs[i], EXITDATA) == 0) {
